@@ -1,0 +1,19 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY deploy/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm -rf /root/.cache
+
+COPY deploy/app/ app/
+COPY deploy/monitoring/ monitoring/
+COPY mlartifacts/1/models/m-f2cdec93641243389b1b075d919833a1/ mlartifacts/1/models/m-f2cdec93641243389b1b075d919833a1/
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV MODEL_URI=mlartifacts/1/models/m-f2cdec93641243389b1b075d919833a1/artifacts
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
