@@ -22,8 +22,10 @@ spec:
             - containerPort: 8000
               protocol: TCP
           env:
-            - name: INFERENCE_LOG_DIR
-              value: /data/inference_logs
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: redpanda:9092
+            - name: KAFKA_TOPIC
+              value: inference-events
           resources:
             requests:
               cpu: "500m"
@@ -43,9 +45,3 @@ spec:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 5
-          volumeMounts:
-            - name: inference-logs
-              mountPath: /data/inference_logs
-      volumes:
-        - name: inference-logs
-          emptyDir: {}

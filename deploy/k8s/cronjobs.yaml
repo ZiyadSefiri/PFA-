@@ -1,0 +1,114 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drift-short-term
+spec:
+  schedule: "0 */6 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: evidently
+              image: diabetic-readmission:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - monitoring.short_term
+              args:
+                - --baseline
+                - /data/baseline/diabetic_data.csv
+                - --output-dir
+                - /data/reports
+                - --window-hours
+                - "24"
+              env:
+                - name: DUCKDB_PATH
+                  value: /data/duckdb/inference.duckdb
+              volumeMounts:
+                - name: duckdb
+                  mountPath: /data/duckdb
+                  readOnly: true
+                - name: reports
+                  mountPath: /data/reports
+                - name: baseline
+                  mountPath: /data/baseline
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "1"
+                  memory: "1Gi"
+          restartPolicy: OnFailure
+          volumes:
+            - name: duckdb
+              persistentVolumeClaim:
+                claimName: duckdb-data
+            - name: reports
+              persistentVolumeClaim:
+                claimName: evidently-reports
+            - name: baseline
+              hostPath:
+                path: /home/ziyad/Dev/PFA/Training/data
+                type: Directory
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drift-long-term
+spec:
+  schedule: "0 2 * * 0"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: evidently
+              image: diabetic-readmission:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - python
+                - -m
+                - monitoring.long_term
+              args:
+                - --baseline
+                - /data/baseline/diabetic_data.csv
+                - --output-dir
+                - /data/reports
+                - --window-days
+                - "7"
+              env:
+                - name: DUCKDB_PATH
+                  value: /data/duckdb/inference.duckdb
+              volumeMounts:
+                - name: duckdb
+                  mountPath: /data/duckdb
+                  readOnly: true
+                - name: reports
+                  mountPath: /data/reports
+                - name: baseline
+                  mountPath: /data/baseline
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "1"
+                  memory: "1Gi"
+          restartPolicy: OnFailure
+          volumes:
+            - name: duckdb
+              persistentVolumeClaim:
+                claimName: duckdb-data
+            - name: reports
+              persistentVolumeClaim:
+                claimName: evidently-reports
+            - name: baseline
+              hostPath:
+                path: /home/ziyad/Dev/PFA/Training/data
+                type: Directory

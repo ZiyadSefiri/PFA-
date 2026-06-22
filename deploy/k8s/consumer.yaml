@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duckdb-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: evidently-reports
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference-consumer
+  labels:
+    app: inference-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inference-consumer
+  template:
+    metadata:
+      labels:
+        app: inference-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: diabetic-readmission:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "consumer.consumer"]
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: redpanda:9092
+            - name: KAFKA_TOPIC
+              value: inference-events
+            - name: DUCKDB_PATH
+              value: /data/duckdb/inference.duckdb
+          volumeMounts:
+            - name: duckdb
+              mountPath: /data/duckdb
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: duckdb
+          persistentVolumeClaim:
+            claimName: duckdb-data

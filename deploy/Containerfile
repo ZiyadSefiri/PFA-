@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && rm -rf /root/.cache
 
 COPY deploy/app/ app/
+COPY deploy/consumer/ consumer/
 COPY deploy/monitoring/ monitoring/
 COPY mlartifacts/1/models/m-f2cdec93641243389b1b075d919833a1/ mlartifacts/1/models/m-f2cdec93641243389b1b075d919833a1/
 

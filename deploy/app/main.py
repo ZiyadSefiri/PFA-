@@ -1,13 +1,11 @@
-import json
 import logging
 import os
-from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.kafka_producer import init_producer, close_producer, send_inference
 from app.model_loader import get_model, get_model_info
 
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +14,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Diabetic Readmission Predictor",
     description="ML model inference for diabetic readmission risk",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -25,9 +23,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-INFERENCE_LOG_DIR = Path(os.getenv("INFERENCE_LOG_DIR", "/data/inference_logs"))
-INFERENCE_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.on_event("startup")
@@ -38,6 +33,17 @@ async def startup():
         logger.info("Model loaded successfully. Info: %s", get_model_info())
     except Exception as e:
         logger.error("Failed to load model: %s", e)
+
+    bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "redpanda:9092")
+    try:
+        await init_producer(bootstrap)
+    except Exception as e:
+        logger.warning("Kafka unavailable at %s — inference events will be dropped: %s", bootstrap, e)
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await close_producer()
 
 
 @app.get("/health")
@@ -84,6 +90,7 @@ async def predict(payload: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid input data: {e}")
 
+    raw_records = df.to_dict(orient="records")
     df = _preprocess(df)
     if df.empty:
         raise HTTPException(status_code=400, detail="All instances were filtered out during preprocessing")
@@ -102,25 +109,10 @@ async def predict(payload: dict):
                 "probability_not_readmitted": float(probs[i][0]),
             })
 
-        _log_inference(df, results)
+        await send_inference(raw_records, results)
 
         return {"predictions": results}
 
     except Exception as e:
         logger.exception("Prediction failed")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-def _log_inference(input_df: pd.DataFrame, results: list):
-    try:
-        timestamp = datetime.utcnow().isoformat()
-        log_entry = {
-            "timestamp": timestamp,
-            "input": input_df.to_dict(orient="records"),
-            "output": results,
-        }
-        log_file = INFERENCE_LOG_DIR / f"{datetime.utcnow().strftime('%Y%m%d')}.jsonl"
-        with open(log_file, "a") as f:
-            f.write(json.dumps(log_entry) + "\n")
-    except Exception as e:
-        logger.warning("Failed to log inference: %s", e)

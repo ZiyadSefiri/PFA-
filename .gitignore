@@ -1,0 +1,27 @@
+# Data
+Training/data/
+
+# MLflow
+mlflow.db
+mlartifacts/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Virtual environment
+Training/pfa_training/
+
+# IDE
+.vscode/
+.idea/
+
+# Deployment
+deploy/inference_logs/
+*.duckdb
+
+# OS
+.DS_Store
+Thumbs.db

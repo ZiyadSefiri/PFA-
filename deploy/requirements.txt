@@ -10,3 +10,7 @@ psutil==7.2.2
 imbalanced-learn==0.13.0
 evidently==0.4.36
 pydantic==2.11.1
+aiokafka==0.12.0
+kafka-python==2.0.3
+duckdb==1.2.1
+streamlit==1.44.1
